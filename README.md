@@ -18,7 +18,9 @@ Start MySQL, Redis and the API (migrations and seed data run on startup):
 docker compose up --build
 ```
 
-API: http://localhost:8080/api. MySQL is on host port 3307, Redis on 6379.
+API: http://localhost:8080/api. MySQL is on host port 3307 and Redis on 6379, both bound to localhost only.
+
+Configuration is optional. Compose reads a `.env` file next to `docker-compose.yml` if one exists, and otherwise uses the defaults in [`.env.example`](.env.example) (database passwords, `CORS_ORIGINS`). To change them, copy `.env.example` to `.env` and edit it. The API connects as the `tasks` user, which only has access to the `tasks` database. Changing the database credentials after the first start needs `docker compose down -v`, because MySQL only creates users on an empty volume.
 
 Start the mobile app (web):
 
@@ -30,10 +32,10 @@ npx expo start --web
 
 Open http://localhost:8081.
 
-The app reads the API address from `EXPO_PUBLIC_API_URL` (default `http://localhost:8080/api`):
+The app reads the API address from `EXPO_PUBLIC_API_URL` (default `http://localhost:8080/api`). To change it, copy `mobile/.env.example` to `mobile/.env`; Expo loads it on start.
 
-- Android emulator: `EXPO_PUBLIC_API_URL=http://10.0.2.2:8080/api npx expo start` (PowerShell: `$env:EXPO_PUBLIC_API_URL="http://10.0.2.2:8080/api"; npx expo start`)
-- Physical device: use your machine's LAN IP, e.g. `http://192.168.1.20:8080/api`. The API's CORS allow-list (`CORS_ORIGINS`, default `http://localhost:8081`) only matters for the web build.
+- Android emulator: `EXPO_PUBLIC_API_URL=http://10.0.2.2:8080/api`
+- Physical device: your machine's LAN IP, e.g. `http://192.168.1.20:8080/api`. The API's CORS allow-list (`CORS_ORIGINS`) only matters for the web build.
 
 ## Tests
 
@@ -58,7 +60,7 @@ PowerShell:
 $env:TEST_MYSQL_DSN='root:root@tcp(localhost:3307)/tasks_test?parseTime=true&multiStatements=true&loc=UTC'; go test -p 1 ./...
 ```
 
-`-p 1` is needed because all packages share one test database. Without `TEST_MYSQL_DSN` the repository tests report SKIP.
+The tests use the MySQL root account because they need the separate `tasks_test` database; replace `root:root` if you changed `MYSQL_ROOT_PASSWORD`. `-p 1` is needed because all packages share one test database. Without `TEST_MYSQL_DSN` the repository tests report SKIP.
 
 Mobile tests and type check:
 
@@ -95,8 +97,8 @@ List parameters for `GET /api/tasks`:
 | Param | Default | Rule |
 | --- | --- | --- |
 | `status` | none | `todo`, `in_progress` or `done` |
-| `keyword` | none | matches title or description |
-| `assignee` | none | exact match, case-insensitive |
+| `keyword` | none | matches title or description; max 100 characters |
+| `assignee` | none | exact match, case-insensitive; max 100 characters |
 | `page` | `1` | integer >= 1 |
 | `limit` | `10` | 1 to 100 |
 | `sort` | `-created_at` | `created_at`, `updated_at`, `title` or `status`; prefix `-` for descending |
@@ -115,6 +117,7 @@ Errors always use one shape:
 | `NOT_FOUND` | 404 | unknown or deleted task, unknown route |
 | `METHOD_NOT_ALLOWED` | 405 | wrong method on a known route |
 | `DUPLICATE_TITLE` | 409 | another active task has this title |
+| `PAYLOAD_TOO_LARGE` | 413 | request body over 1 MB |
 | `INTERNAL_ERROR` | 500 | unexpected failure; the message never contains internal details |
 
 Examples:
@@ -183,9 +186,20 @@ ORDER BY title ASC,id ASC LIMIT 5 OFFSET 5;
 
 (Line breaks added for reading; GORM logs each statement on one line.) The `deleted_at IS NULL` condition comes from GORM's soft-delete support on the `gorm.DeletedAt` field.
 
+## Security notes
+
+- SQL: every value is a bound parameter; the sort column comes from a whitelist and `LIKE` wildcards are escaped.
+- Limits: field lengths are validated, request bodies are capped at 1 MB, search filters at 100 characters, and the HTTP server has read, write and idle timeouts. Redis is capped at 64 MB with LRU eviction, so distinct searches cannot fill it.
+- Errors: unexpected failures return a generic 500; details only go to the server log.
+- Containers: the API runs as a non-root user; MySQL and Redis listen on localhost only. The API port stays on all interfaces so a phone on the same network can reach it.
+- Not done, because the brief left them out: authentication, rate limiting and HTTPS. Swagger UI is also served in release mode.
+- Migrations need `multiStatements=true`, so the API's connection allows multi-statement queries. In production, migrations would run as a separate step with their own user, and the API user would only get `SELECT`, `INSERT` and `UPDATE`.
+- `npm audit` reports advisories in `picomatch`, `minimatch` and `glob`. These come from Expo CLI, Metro and Jest, which run on the developer machine and are not part of the app bundle. `npm audit fix --force` would downgrade Expo, so it is not applied.
+
 ## With more time
 
 - Authentication and per-user tasks.
+- Rate limiting.
 - FULLTEXT index for keyword search; `LIKE '%x%'` cannot use an index.
 - Cursor (keyset) pagination instead of offset.
 - Version-counter cache invalidation.
