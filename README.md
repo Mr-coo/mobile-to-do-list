@@ -2,7 +2,7 @@
 
 A task management app: a Go (Gin + GORM) REST API backed by MySQL 8, a Redis cache for the list endpoint, and an Expo (React Native, runs on web) client.
 
-No starter repo was provided with the brief. I first built a small baseline app (the first four commits in `git log`) that deliberately contained the brief's bugs: duplicate titles returned 500, and soft-deleted tasks showed up in the list. The rest of the history fixes those and adds the requested features one commit at a time.
+No starter repo was provided with the brief. I first built a small baseline app (the four oldest commits in `git log`) that deliberately contained the brief's bugs: duplicate titles returned 500, and soft-deleted tasks showed up in the list. The rest of the history fixes those and adds the requested features one commit at a time.
 
 ## Prerequisites
 
@@ -32,7 +32,7 @@ Open http://localhost:8081.
 
 The app reads the API address from `EXPO_PUBLIC_API_URL` (default `http://localhost:8080/api`):
 
-- Android emulator: `EXPO_PUBLIC_API_URL=http://10.0.2.2:8080/api npx expo start`
+- Android emulator: `EXPO_PUBLIC_API_URL=http://10.0.2.2:8080/api npx expo start` (PowerShell: `$env:EXPO_PUBLIC_API_URL="http://10.0.2.2:8080/api"; npx expo start`)
 - Physical device: use your machine's LAN IP, e.g. `http://192.168.1.20:8080/api`. The API's CORS allow-list (`CORS_ORIGINS`, default `http://localhost:8081`) only matters for the web build.
 
 ## Tests
@@ -50,6 +50,12 @@ Backend integration tests (real MySQL):
 docker compose up -d mysql
 cd backend
 TEST_MYSQL_DSN='root:root@tcp(localhost:3307)/tasks_test?parseTime=true&multiStatements=true&loc=UTC' go test -p 1 ./...
+```
+
+PowerShell:
+
+```powershell
+$env:TEST_MYSQL_DSN='root:root@tcp(localhost:3307)/tasks_test?parseTime=true&multiStatements=true&loc=UTC'; go test -p 1 ./...
 ```
 
 `-p 1` is needed because all packages share one test database. Without `TEST_MYSQL_DSN` the repository tests report SKIP.
@@ -144,7 +150,7 @@ Calling the list endpoint twice with the same parameters returns `X-Cache: MISS`
 | Frontend: search, status filter, pagination | `feat: add search, status filter and pagination to task list` | `mobile/src/components/__tests__/SearchBar.test.tsx`, `Pagination.test.tsx`, `TaskList.test.tsx` |
 | Frontend: edit modal, loading state | `feat: add task edit modal with delete` | `mobile/src/screens/__tests__/TasksScreen.test.tsx`, `TaskList.test.tsx` (spinner) |
 | Bug: duplicate title returns 500, should be 409 | `fix: return 409 for duplicate task titles` | `handler_test.go` (`TestCreateTask_DuplicateTitle_Returns409`), `repository_test.go` (`TestCreate_DuplicateTitle_ReturnsErrDuplicateTitle`) |
-| Bug: list not refreshed after update | Prevented by design: no edit feature existed in the baseline, and `useUpdateTask` invalidates the `['tasks']` query | `TasksScreen.test.tsx` ("refreshes the list after saving an edit") |
+| Bug: list not refreshed after update | Prevented by design: no edit feature existed in the baseline, and `useUpdateTask` invalidates the `['tasks']` query | `TasksScreen.test.tsx` ("refreshes the list after saving an edit"), `backend/internal/task/cache_test.go` (`TestUpdate_InvalidatesListCache`) |
 | Bug: soft-deleted tasks visible | `fix: hide soft-deleted tasks`, `refactor: skip soft-deleted tasks in fake repo` | `repository_test.go` (`TestList_ExcludesDeleted`, `TestGetByID_Deleted_ReturnsErrNotFound`) |
 | DB migration | `feat: add project setup, compose and tasks migrations` | `backend/internal/database/database_test.go` |
 
@@ -154,7 +160,7 @@ Baseline (existing app) commits: `feat: add project setup, compose and tasks mig
 
 - Layered backend: `handler` (HTTP, binding) -> `service` (rules, cache) -> `repository` (GORM). The service depends on `Repository` and `ListCache` interfaces, so unit tests use a fake repository and miniredis (in-process Redis), and only `repository_test.go` needs MySQL.
 - GORM for queries, plain SQL files for schema. No `AutoMigrate`; `backend/migrations/*.sql` run through golang-migrate on API start. Migration 000002 seeds sample data, including four soft-deleted rows.
-- Unique titles among active tasks only, case-insensitive (column collation `utf8mb4_0900_ai_ci`). MySQL has no partial unique index, so migration 000003 adds a stored generated column `active_title` (the title when `deleted_at IS NULL`, else NULL) with a unique index. NULLs do not collide, so deleting a task frees its title. GORM's `TranslateError` turns the duplicate-key error into `DUPLICATE_TITLE`.
+- Unique titles among active tasks only, case- and accent-insensitive (column collation `utf8mb4_0900_ai_ci`). MySQL has no partial unique index, so migration 000003 adds a stored generated column `active_title` (the title when `deleted_at IS NULL`, else NULL) with a unique index. NULLs do not collide, so deleting a task frees its title. GORM's `TranslateError` turns the duplicate-key error into `DUPLICATE_TITLE`.
 - Cache key: `tasks:list:` plus the normalised query (defaults applied, keys sorted, empty values omitted), so `/tasks` and `/tasks?page=1&limit=10` share an entry. TTL 60s.
 - Invalidation: after every successful create, update or delete, `SCAN tasks:list:*` then `DEL`. SCAN rather than KEYS so Redis is never blocked. Known trade-off: a list read that races a write can cache a stale page for up to 60s. For a larger system a version-counter key (`tasks:list:v<N>:...`, bump N on write) avoids the scan and the race.
 - Redis failure: errors are logged and the request falls back to MySQL. The client uses 200ms timeouts and no retries, so an outage costs about 0.4s per request (one failed read plus one failed write) instead of seconds.
