@@ -350,8 +350,9 @@ func TestDeleteTask_ThenGet_Returns404(t *testing.T) {
 
 func TestCreateTask_TooLongFields_Returns400(t *testing.T) {
 	cases := map[string]struct{ body, field string }{
-		"title":    {`{"title":"` + strings.Repeat("a", 256) + `"}`, "title"},
-		"assignee": {`{"title":"A","assignee":"` + strings.Repeat("a", 101) + `"}`, "assignee"},
+		"title":       {`{"title":"` + strings.Repeat("a", 256) + `"}`, "title"},
+		"assignee":    {`{"title":"A","assignee":"` + strings.Repeat("a", 101) + `"}`, "assignee"},
+		"description": {`{"title":"A","description":"` + strings.Repeat("a", 10001) + `"}`, "description"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -374,6 +375,18 @@ func TestUpdateTask_TooLongTitle_Returns400(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
 	}
 	if e := errorOf(t, w); e.Details["title"] != "is too long" {
+		t.Fatalf("unexpected error: %+v", e)
+	}
+}
+
+func TestUpdateTask_TooLongDescription_Returns400(t *testing.T) {
+	r := newRouter()
+	do(r, http.MethodPost, "/api/tasks", `{"title":"A"}`)
+	w := do(r, http.MethodPut, "/api/tasks/1", `{"title":"A","status":"todo","description":"`+strings.Repeat("a", 10001)+`"}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+	if e := errorOf(t, w); e.Details["description"] != "is too long" {
 		t.Fatalf("unexpected error: %+v", e)
 	}
 }

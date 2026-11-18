@@ -32,7 +32,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 
 type CreateTaskRequest struct {
 	Title       string  `json:"title" binding:"required,max=255"`
-	Description *string `json:"description"`
+	Description *string `json:"description" binding:"omitempty,max=10000"`
 	Status      Status  `json:"status" binding:"omitempty,oneof=todo in_progress done"`
 	Assignee    *string `json:"assignee" binding:"omitempty,max=100"`
 }
@@ -123,7 +123,7 @@ func (h *Handler) get(c *gin.Context) {
 
 type UpdateTaskRequest struct {
 	Title       string  `json:"title" binding:"required,max=255"`
-	Description *string `json:"description"`
+	Description *string `json:"description" binding:"omitempty,max=10000"`
 	Status      Status  `json:"status" binding:"required,oneof=todo in_progress done"`
 	Assignee    *string `json:"assignee" binding:"omitempty,max=100"`
 }

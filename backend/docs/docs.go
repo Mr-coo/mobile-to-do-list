@@ -344,7 +344,8 @@ const docTemplate = `{
                     "maxLength": 100
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 10000
                 },
                 "status": {
                     "enum": [
@@ -454,7 +455,8 @@ const docTemplate = `{
                     "maxLength": 100
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 10000
                 },
                 "status": {
                     "enum": [
