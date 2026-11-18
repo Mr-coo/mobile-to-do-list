@@ -1,9 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createTask, listTasks } from '../api/tasks';
-import { TaskInput } from '../types';
+import { ListParams, TaskInput } from '../types';
 
-export function useTaskList() {
-  return useQuery({ queryKey: ['tasks'], queryFn: listTasks });
+export function useTaskList(params: ListParams) {
+  return useQuery({
+    queryKey: ['tasks', params],
+    queryFn: () => listTasks(params),
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function useCreateTask() {
