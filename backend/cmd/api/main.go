@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/redis/go-redis/v9"
+
 	"taskmanager/internal/config"
 	"taskmanager/internal/database"
 	"taskmanager/internal/server"
@@ -23,7 +25,8 @@ func main() {
 	}
 
 	repo := task.NewGormRepository(db)
-	handler := task.NewHandler(task.NewService(repo))
+	rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	handler := task.NewHandler(task.NewService(repo, task.NewRedisListCache(rdb)))
 	router := server.New(handler, cfg.CORSOrigins)
 
 	slog.Info("api listening", "port", cfg.Port)

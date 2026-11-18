@@ -56,10 +56,15 @@ func (h *Handler) list(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	result, err := h.svc.List(c.Request.Context(), q)
+	result, hit, err := h.svc.List(c.Request.Context(), q)
 	if err != nil {
 		httpx.WriteError(c, err)
 		return
+	}
+	if hit {
+		c.Header("X-Cache", "HIT")
+	} else {
+		c.Header("X-Cache", "MISS")
 	}
 	c.JSON(http.StatusOK, result)
 }

@@ -2,6 +2,8 @@ package task
 
 import (
 	"context"
+	"encoding/json"
+	"log/slog"
 	"strings"
 
 	"taskmanager/internal/apperr"
@@ -22,11 +24,23 @@ type UpdateInput struct {
 }
 
 type Service struct {
-	repo Repository
+	repo  Repository
+	cache ListCache // nil disables caching
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, cache ListCache) *Service {
+	return &Service{repo: repo, cache: cache}
+}
+
+// invalidate runs after a successful write. The write already succeeded, so a
+// cache failure is only logged; stale lists expire on their own after the TTL.
+func (s *Service) invalidate(ctx context.Context) {
+	if s.cache == nil {
+		return
+	}
+	if err := s.cache.InvalidateLists(ctx); err != nil {
+		slog.Warn("invalidate list cache", "error", err)
+	}
 }
 
 func (s *Service) Create(ctx context.Context, in CreateInput) (*Task, error) {
@@ -46,10 +60,40 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*Task, error) {
 	if err := s.repo.Create(ctx, t); err != nil {
 		return nil, err
 	}
+	s.invalidate(ctx)
 	return t, nil
 }
 
-func (s *Service) List(ctx context.Context, q ListQuery) (ListResult, error) {
+// List reports whether the result came from the cache.
+func (s *Service) List(ctx context.Context, q ListQuery) (ListResult, bool, error) {
+	if s.cache == nil {
+		res, err := s.listFromRepo(ctx, q)
+		return res, false, err
+	}
+	key := q.CacheKey()
+	if raw, found, err := s.cache.Get(ctx, key); err != nil {
+		slog.Warn("read list cache", "error", err)
+	} else if found {
+		var res ListResult
+		if err := json.Unmarshal(raw, &res); err == nil {
+			return res, true, nil
+		}
+		slog.Warn("decode cached list", "key", key)
+	}
+
+	res, err := s.listFromRepo(ctx, q)
+	if err != nil {
+		return ListResult{}, false, err
+	}
+	if raw, err := json.Marshal(res); err != nil {
+		slog.Warn("encode list for cache", "error", err)
+	} else if err := s.cache.Set(ctx, key, raw, listCacheTTL); err != nil {
+		slog.Warn("write list cache", "error", err)
+	}
+	return res, false, nil
+}
+
+func (s *Service) listFromRepo(ctx context.Context, q ListQuery) (ListResult, error) {
 	tasks, total, err := s.repo.List(ctx, q)
 	if err != nil {
 		return ListResult{}, err
@@ -85,9 +129,14 @@ func (s *Service) Update(ctx context.Context, id uint64, in UpdateInput) (*Task,
 	if err := s.repo.Update(ctx, t); err != nil {
 		return nil, err
 	}
+	s.invalidate(ctx)
 	return t, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id uint64) error {
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.invalidate(ctx)
+	return nil
 }

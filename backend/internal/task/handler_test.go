@@ -16,8 +16,12 @@ import (
 )
 
 func newRouter() *gin.Engine {
+	return newRouterWith(task.NewService(newFakeRepo(), nil))
+}
+
+func newRouterWith(svc *task.Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	return server.New(task.NewHandler(task.NewService(newFakeRepo())), nil)
+	return server.New(task.NewHandler(svc), nil)
 }
 
 func do(r *gin.Engine, method, path, body string) *httptest.ResponseRecorder {

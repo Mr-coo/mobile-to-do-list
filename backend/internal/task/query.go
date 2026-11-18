@@ -87,3 +87,22 @@ func ParseListQuery(v url.Values) (ListQuery, error) {
 	}
 	return q, nil
 }
+
+// CacheKey is built from the normalised query, so "/tasks" and
+// "/tasks?page=1&limit=10" share one entry. Encode sorts the keys.
+func (q ListQuery) CacheKey() string {
+	v := url.Values{}
+	v.Set("page", strconv.Itoa(q.Page))
+	v.Set("limit", strconv.Itoa(q.Limit))
+	v.Set("sort", q.Sort)
+	if q.Status != "" {
+		v.Set("status", string(q.Status))
+	}
+	if q.Keyword != "" {
+		v.Set("keyword", q.Keyword)
+	}
+	if q.Assignee != "" {
+		v.Set("assignee", q.Assignee)
+	}
+	return listKeyPrefix + v.Encode()
+}

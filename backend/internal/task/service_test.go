@@ -21,7 +21,7 @@ func seed(t *testing.T, svc *task.Service, title string) *task.Task {
 }
 
 func TestUpdate_Success(t *testing.T) {
-	svc := task.NewService(newFakeRepo())
+	svc := task.NewService(newFakeRepo(), nil)
 	orig := seed(t, svc, "Old")
 
 	got, err := svc.Update(context.Background(), orig.ID, task.UpdateInput{
@@ -41,7 +41,7 @@ func TestUpdate_Success(t *testing.T) {
 }
 
 func TestUpdate_NotFound(t *testing.T) {
-	svc := task.NewService(newFakeRepo())
+	svc := task.NewService(newFakeRepo(), nil)
 	_, err := svc.Update(context.Background(), 99, task.UpdateInput{Title: "x", Status: task.StatusTodo})
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
@@ -49,7 +49,7 @@ func TestUpdate_NotFound(t *testing.T) {
 }
 
 func TestUpdate_DuplicateTitle(t *testing.T) {
-	svc := task.NewService(newFakeRepo())
+	svc := task.NewService(newFakeRepo(), nil)
 	seed(t, svc, "One")
 	two := seed(t, svc, "Two")
 
@@ -60,7 +60,7 @@ func TestUpdate_DuplicateTitle(t *testing.T) {
 }
 
 func TestUpdate_KeepOwnTitle(t *testing.T) {
-	svc := task.NewService(newFakeRepo())
+	svc := task.NewService(newFakeRepo(), nil)
 	tk := seed(t, svc, "Same")
 
 	got, err := svc.Update(context.Background(), tk.ID, task.UpdateInput{Title: "SAME", Status: task.StatusDone})
@@ -73,7 +73,7 @@ func TestUpdate_KeepOwnTitle(t *testing.T) {
 }
 
 func TestUpdate_WhitespaceTitle(t *testing.T) {
-	svc := task.NewService(newFakeRepo())
+	svc := task.NewService(newFakeRepo(), nil)
 	tk := seed(t, svc, "Real")
 
 	_, err := svc.Update(context.Background(), tk.ID, task.UpdateInput{Title: "   ", Status: task.StatusTodo})
@@ -84,7 +84,7 @@ func TestUpdate_WhitespaceTitle(t *testing.T) {
 }
 
 func TestDelete_Success(t *testing.T) {
-	svc := task.NewService(newFakeRepo())
+	svc := task.NewService(newFakeRepo(), nil)
 	tk := seed(t, svc, "Buy milk")
 	if err := svc.Delete(context.Background(), tk.ID); err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestDelete_Success(t *testing.T) {
 }
 
 func TestDelete_NotFound(t *testing.T) {
-	svc := task.NewService(newFakeRepo())
+	svc := task.NewService(newFakeRepo(), nil)
 	if err := svc.Delete(context.Background(), 999); !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
