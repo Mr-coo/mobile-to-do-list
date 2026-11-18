@@ -11,3 +11,11 @@ export function listTasks(params: ListParams): Promise<ListResponse> {
 export function createTask(input: TaskInput): Promise<{ data: Task }> {
   return request('/tasks', { method: 'POST', body: JSON.stringify(input) });
 }
+
+export function updateTask(id: number, input: TaskInput): Promise<{ data: Task }> {
+  return request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(input) });
+}
+
+export function deleteTask(id: number): Promise<void> {
+  return request(`/tasks/${id}`, { method: 'DELETE' });
+}

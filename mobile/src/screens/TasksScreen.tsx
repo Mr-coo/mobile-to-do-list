@@ -6,13 +6,14 @@ import { SearchBar } from '../components/SearchBar';
 import { StatusFilter } from '../components/StatusFilter';
 import { TaskFormModal } from '../components/TaskFormModal';
 import { TaskList } from '../components/TaskList';
-import { useCreateTask, useTaskList } from '../hooks/useTasks';
-import { TaskInput, TaskStatus } from '../types';
+import { useCreateTask, useDeleteTask, useTaskList, useUpdateTask } from '../hooks/useTasks';
+import { Task, TaskInput, TaskStatus } from '../types';
 
 const PAGE_SIZE = 10;
 
 export function TasksScreen() {
   const [formVisible, setFormVisible] = useState(false);
+  const [editing, setEditing] = useState<Task | undefined>();
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState<TaskStatus | undefined>();
   const [page, setPage] = useState(1);
@@ -23,6 +24,8 @@ export function TasksScreen() {
     limit: PAGE_SIZE,
   });
   const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
 
   const handleSearch = useCallback((value: string) => {
     setKeyword(value);
@@ -36,12 +39,30 @@ export function TasksScreen() {
 
   const closeForm = () => {
     setFormVisible(false);
+    setEditing(undefined);
     createTask.reset();
+    updateTask.reset();
+    deleteTask.reset();
   };
 
-  const handleCreate = (input: TaskInput) => {
-    createTask.mutate(input, { onSuccess: closeForm });
+  const openEdit = (task: Task) => {
+    setEditing(task);
+    setFormVisible(true);
   };
+
+  const handleSubmit = (input: TaskInput) => {
+    if (editing) {
+      updateTask.mutate({ id: editing.id, input }, { onSuccess: closeForm });
+    } else {
+      createTask.mutate(input, { onSuccess: closeForm });
+    }
+  };
+
+  const handleDelete = () => {
+    if (editing) deleteTask.mutate(editing.id, { onSuccess: closeForm });
+  };
+
+  const saveMutation = editing ? updateTask : createTask;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -66,7 +87,7 @@ export function TasksScreen() {
           </Pressable>
         </View>
       ) : (
-        <TaskList tasks={data?.data ?? []} isLoading={isLoading} />
+        <TaskList tasks={data?.data ?? []} isLoading={isLoading} onPressTask={openEdit} />
       )}
       <Pagination
         page={page}
@@ -76,10 +97,12 @@ export function TasksScreen() {
       />
       <TaskFormModal
         visible={formVisible}
-        onSubmit={handleCreate}
+        task={editing}
+        onSubmit={handleSubmit}
+        onDelete={handleDelete}
         onClose={closeForm}
-        isSaving={createTask.isPending}
-        error={createTask.error?.message}
+        isSaving={saveMutation.isPending || deleteTask.isPending}
+        error={deleteTask.error ?? saveMutation.error}
       />
     </SafeAreaView>
   );

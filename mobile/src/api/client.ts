@@ -14,13 +14,36 @@ export class ApiError extends Error {
   }
 }
 
+interface ErrorShape {
+  code?: string;
+  message?: string;
+  details?: Record<string, string>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function toApiError(status: number, body: unknown): ApiError {
+  const error = isRecord(body) ? body.error : undefined;
+  if (isRecord(error)) {
+    const { code, message, details } = error as ErrorShape;
+    return new ApiError(status, code ?? 'UNKNOWN', message ?? 'Request failed', details);
+  }
+  return new ApiError(status, 'UNKNOWN', typeof error === 'string' ? error : 'Request failed');
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
 
-  let body: any = null;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  let body: unknown = null;
   try {
     body = await response.json();
   } catch {
@@ -28,11 +51,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const error = body?.error;
-    if (error && typeof error === 'object') {
-      throw new ApiError(response.status, error.code ?? 'UNKNOWN', error.message ?? 'Request failed', error.details);
-    }
-    throw new ApiError(response.status, 'UNKNOWN', typeof error === 'string' ? error : 'Request failed');
+    throw toApiError(response.status, body);
   }
 
   return body as T;

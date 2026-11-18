@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ApiError } from '../api/client';
 import { Task, TaskInput, TaskStatus } from '../types';
 import { STATUS_LABELS } from './TaskItem';
 
@@ -7,14 +8,15 @@ interface Props {
   visible: boolean;
   task?: Task;
   onSubmit: (input: TaskInput) => void;
+  onDelete?: () => void;
   onClose: () => void;
   isSaving: boolean;
-  error?: string;
+  error?: Error | null;
 }
 
 const STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done'];
 
-export function TaskFormModal({ visible, task, onSubmit, onClose, isSaving, error }: Props) {
+export function TaskFormModal({ visible, task, onSubmit, onDelete, onClose, isSaving, error }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>('todo');
@@ -38,6 +40,26 @@ export function TaskFormModal({ visible, task, onSubmit, onClose, isSaving, erro
     });
   };
 
+  const confirmDelete = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete this task?')) onDelete?.();
+      return;
+    }
+    Alert.alert('Delete task', 'Delete this task?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: onDelete },
+    ]);
+  };
+
+  const apiError = error instanceof ApiError ? error : undefined;
+  const fieldErrors = apiError?.code === 'VALIDATION_ERROR' ? (apiError.details ?? {}) : {};
+  let formError: string | undefined;
+  if (apiError?.code === 'DUPLICATE_TITLE') {
+    formError = 'A task with this title already exists';
+  } else if (error && apiError?.code !== 'VALIDATION_ERROR') {
+    formError = 'Something went wrong, try again';
+  }
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -45,6 +67,7 @@ export function TaskFormModal({ visible, task, onSubmit, onClose, isSaving, erro
 
         <Text style={styles.label}>Title</Text>
         <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Title" />
+        {fieldErrors.title ? <Text style={styles.error}>{fieldErrors.title}</Text> : null}
 
         <Text style={styles.label}>Description</Text>
         <TextInput
@@ -54,6 +77,7 @@ export function TaskFormModal({ visible, task, onSubmit, onClose, isSaving, erro
           placeholder="Description"
           multiline
         />
+        {fieldErrors.description ? <Text style={styles.error}>{fieldErrors.description}</Text> : null}
 
         <Text style={styles.label}>Status</Text>
         <View style={styles.chips}>
@@ -77,15 +101,21 @@ export function TaskFormModal({ visible, task, onSubmit, onClose, isSaving, erro
           onChangeText={setAssignee}
           placeholder="Assignee"
         />
+        {fieldErrors.assignee ? <Text style={styles.error}>{fieldErrors.assignee}</Text> : null}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
         <View style={styles.actions}>
+          {task && onDelete ? (
+            <Pressable style={styles.delete} onPress={confirmDelete} disabled={isSaving}>
+              <Text style={styles.deleteText}>Delete</Text>
+            </Pressable>
+          ) : null}
           <Pressable style={styles.cancel} onPress={onClose} disabled={isSaving}>
             <Text>Cancel</Text>
           </Pressable>
           <Pressable style={styles.save} onPress={submit} disabled={isSaving}>
-            <Text style={styles.saveText}>{isSaving ? 'Saving...' : 'Save'}</Text>
+            {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save</Text>}
           </Pressable>
         </View>
       </ScrollView>
@@ -106,6 +136,8 @@ const styles = StyleSheet.create({
   chipTextActive: { color: '#fff' },
   error: { color: '#b91c1c', marginTop: 12 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 24 },
+  delete: { paddingVertical: 10, paddingHorizontal: 16, marginRight: 'auto' },
+  deleteText: { color: '#b91c1c', fontWeight: '600' },
   cancel: { paddingVertical: 10, paddingHorizontal: 16 },
   save: { backgroundColor: '#2563eb', borderRadius: 6, paddingVertical: 10, paddingHorizontal: 20 },
   saveText: { color: '#fff', fontWeight: '600' },
