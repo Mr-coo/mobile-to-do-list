@@ -8,7 +8,7 @@ No starter repo was provided with the brief. I first built a small baseline app 
 
 - Docker Desktop (Compose v2)
 - Node 20+
-- Go 1.26+, only to run the backend tests locally. `go.mod` says `go 1.26.0` because the latest Gin needs it; an older Go downloads the toolchain automatically.
+- Go 1.26+, only to run the backend tests locally. `go.mod` says `go 1.26.0` because the latest Gin needs it, and `toolchain go1.26.11` because earlier 1.26 releases have standard-library security fixes missing (`govulncheck ./...` reports none at 1.26.11). An older Go downloads that toolchain automatically.
 
 ## Run
 
