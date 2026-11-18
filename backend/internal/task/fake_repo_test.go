@@ -3,10 +3,10 @@ package task_test
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
+	"taskmanager/internal/apperr"
 	"taskmanager/internal/task"
 )
 
@@ -20,6 +20,11 @@ func newFakeRepo() *fakeRepo {
 }
 
 func (f *fakeRepo) Create(ctx context.Context, t *task.Task) error {
+	for _, existing := range f.tasks {
+		if existing.DeletedAt == nil && strings.EqualFold(existing.Title, t.Title) {
+			return apperr.ErrDuplicateTitle
+		}
+	}
 	t.ID = f.nextID
 	f.nextID++
 	t.CreatedAt = time.Now()
@@ -40,7 +45,7 @@ func (f *fakeRepo) List(ctx context.Context) ([]task.Task, error) {
 func (f *fakeRepo) GetByID(ctx context.Context, id uint64) (*task.Task, error) {
 	t, ok := f.tasks[id]
 	if !ok {
-		return nil, gorm.ErrRecordNotFound
+		return nil, apperr.ErrNotFound
 	}
 	return &t, nil
 }

@@ -2,8 +2,11 @@ package task
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
+
+	"taskmanager/internal/apperr"
 )
 
 type Repository interface {
@@ -21,7 +24,11 @@ func NewGormRepository(db *gorm.DB) *GormRepository {
 }
 
 func (r *GormRepository) Create(ctx context.Context, t *Task) error {
-	return r.db.WithContext(ctx).Create(t).Error
+	err := r.db.WithContext(ctx).Create(t).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return apperr.ErrDuplicateTitle
+	}
+	return err
 }
 
 func (r *GormRepository) List(ctx context.Context) ([]Task, error) {
@@ -32,7 +39,11 @@ func (r *GormRepository) List(ctx context.Context) ([]Task, error) {
 
 func (r *GormRepository) GetByID(ctx context.Context, id uint64) (*Task, error) {
 	var t Task
-	if err := r.db.WithContext(ctx).First(&t, id).Error; err != nil {
+	err := r.db.WithContext(ctx).First(&t, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperr.ErrNotFound
+	}
+	if err != nil {
 		return nil, err
 	}
 	return &t, nil

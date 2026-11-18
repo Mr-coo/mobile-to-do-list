@@ -68,3 +68,42 @@ func TestGetTask_NotFound(t *testing.T) {
 		t.Fatalf("status = %d, want 404", w.Code)
 	}
 }
+
+func TestCreateTask_DuplicateTitle_Returns409(t *testing.T) {
+	r := newRouter()
+	do(r, http.MethodPost, "/api/tasks", `{"title":"Buy milk"}`)
+
+	w := do(r, http.MethodPost, "/api/tasks", `{"title":"buy milk"}`)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+}
+
+func TestCreateTask_WhitespaceTitle_Returns400(t *testing.T) {
+	w := do(newRouter(), http.MethodPost, "/api/tasks", `{"title":"   "}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+}
+
+func TestCreateTask_TrimsTitle(t *testing.T) {
+	r := newRouter()
+	w := do(r, http.MethodPost, "/api/tasks", `{"title":" Buy milk "}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+	var resp struct {
+		Data task.Task `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Data.Title != "Buy milk" {
+		t.Fatalf("title = %q", resp.Data.Title)
+	}
+
+	w = do(r, http.MethodPost, "/api/tasks", `{"title":"Buy milk"}`)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+}

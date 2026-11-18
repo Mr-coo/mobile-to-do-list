@@ -6,7 +6,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+
+	"taskmanager/internal/apperr"
 )
 
 type Handler struct {
@@ -34,6 +35,15 @@ func (h *Handler) create(c *gin.Context) {
 		return
 	}
 	t, err := h.svc.Create(c.Request.Context(), in)
+	var verr *apperr.ValidationError
+	if errors.As(err, &verr) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": verr.Error()})
+		return
+	}
+	if errors.Is(err, apperr.ErrDuplicateTitle) {
+		c.JSON(http.StatusConflict, gin.H{"error": "task title already exists"})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -57,7 +67,7 @@ func (h *Handler) get(c *gin.Context) {
 		return
 	}
 	t, err := h.svc.Get(c.Request.Context(), id)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, apperr.ErrNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
 		return
 	}

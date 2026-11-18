@@ -1,6 +1,11 @@
 package task
 
-import "context"
+import (
+	"context"
+	"strings"
+
+	"taskmanager/internal/apperr"
+)
 
 type CreateInput struct {
 	Title       string  `json:"title" binding:"required"`
@@ -18,8 +23,12 @@ func NewService(repo Repository) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, in CreateInput) (*Task, error) {
+	title := strings.TrimSpace(in.Title)
+	if title == "" {
+		return nil, &apperr.ValidationError{Details: map[string]string{"title": "is required"}}
+	}
 	t := &Task{
-		Title:       in.Title,
+		Title:       title,
 		Description: in.Description,
 		Status:      in.Status,
 		Assignee:    in.Assignee,
