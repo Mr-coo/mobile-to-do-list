@@ -103,6 +103,7 @@ func TestList_Search(t *testing.T) {
 		{Title: "Write docs", Status: task.StatusDone, Assignee: str("Ana")},
 		{Title: "Pay 100% invoice", Status: task.StatusTodo},
 		{Title: "Buy bread", Status: task.StatusDone, Assignee: str("Citra")},
+		{Title: `Fix C:\temp path`, Status: task.StatusInProgress},
 	}
 	for i := range fixtures {
 		fixtures[i].CreatedAt = base.Add(time.Duration(i) * time.Hour)
@@ -122,12 +123,13 @@ func TestList_Search(t *testing.T) {
 		{"keyword in description", task.ListQuery{Keyword: "log in"}, []string{"Fix login bug"}, 1},
 		{"percent is literal", task.ListQuery{Keyword: "100%"}, []string{"Pay 100% invoice"}, 1},
 		{"underscore is literal", task.ListQuery{Keyword: "_"}, []string{}, 0},
+		{"backslash is literal", task.ListQuery{Keyword: `\`}, []string{`Fix C:\temp path`}, 1},
 		{"status", task.ListQuery{Status: task.StatusDone}, []string{"Buy bread", "Write docs"}, 2},
 		{"assignee case-insensitive", task.ListQuery{Assignee: "ana"}, []string{"Write docs", "Buy milk"}, 2},
 		{"status and assignee", task.ListQuery{Status: task.StatusTodo, Assignee: "Ana"}, []string{"Buy milk"}, 1},
-		{"sort by title", task.ListQuery{Sort: "title", Limit: 1}, []string{"Buy bread"}, 5},
-		{"second page", task.ListQuery{Limit: 2, Page: 2}, []string{"Write docs", "Fix login bug"}, 5},
-		{"page past the end", task.ListQuery{Page: 99}, []string{}, 5},
+		{"sort by title", task.ListQuery{Sort: "title", Limit: 1}, []string{"Buy bread"}, 6},
+		{"second page", task.ListQuery{Limit: 2, Page: 2}, []string{"Pay 100% invoice", "Write docs"}, 6},
+		{"page past the end", task.ListQuery{Page: 99}, []string{}, 6},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

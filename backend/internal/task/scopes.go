@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var likeEscaper = strings.NewReplacer(`\`, `\`, `%`, `\%`, `_`, `\_`)
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 func WithStatus(s Status) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
