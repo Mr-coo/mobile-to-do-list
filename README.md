@@ -156,8 +156,40 @@ Calling the list endpoint twice with the same parameters returns `X-Cache: MISS`
 | Bug: list not refreshed after update | Prevented by design: no edit feature existed in the baseline, and `useUpdateTask` invalidates the `['tasks']` query | `TasksScreen.test.tsx` ("refreshes the list after saving an edit"), `backend/internal/task/cache_test.go` (`TestUpdate_InvalidatesListCache`) |
 | Bug: soft-deleted tasks visible | `fix: hide soft-deleted tasks`, `refactor: skip soft-deleted tasks in fake repo` | `repository_test.go` (`TestList_ExcludesDeleted`, `TestGetByID_Deleted_ReturnsErrNotFound`) |
 | DB migration | `feat: add project setup, compose and tasks migrations` | `backend/internal/database/database_test.go` |
+| Testing: update, search, cache invalidation, a frontend component | Each feature commit includes its tests | Update: `service_test.go` (`TestUpdate_*`), `handler_test.go` (`TestUpdateTask_*`). Search: `query_test.go`, `repository_test.go` (`TestList_Search`). Cache invalidation: `cache_test.go` (`TestUpdate_InvalidatesListCache`, `TestDelete_InvalidatesListCache`). Components: `SearchBar.test.tsx`, `TaskList.test.tsx`, `Pagination.test.tsx` |
 
 Baseline (existing app) commits: `feat: add project setup, compose and tasks migrations`, `refactor: move test db helper and trim cors origins`, `feat: add task create, list and get endpoints`, `feat: add mobile task list and create form`.
+
+## Assumptions
+
+- No starter repo was provided, so the "existing app" is the baseline described at the top, built first with the brief's bugs in it.
+- PUT replaces the whole task: `title` and `status` are required, and an omitted `description` or `assignee` is cleared.
+- Titles are unique among active tasks only. Deleting a task frees its title for reuse.
+- A soft-deleted task behaves as if it does not exist: GET, PUT and DELETE return 404.
+- New tasks default to `todo`.
+- Keyword search is case-insensitive and matches the title or description. The assignee filter is an exact, case-insensitive match.
+- `sort=status` follows the workflow order `todo`, `in_progress`, `done`, because the column is an ENUM, not alphabetical order.
+- Asking for a page past the end returns an empty `data` with the real `meta`. The app then moves back to the last page.
+
+## Project layout
+
+```text
+backend/
+  cmd/api/              entry point: config, MySQL, migrations, Redis, router
+  internal/task/        handler -> service -> repository, list query, Redis cache
+  internal/apperr/      domain errors and validation messages
+  internal/httpx/       the shared error response
+  internal/server/      router, middleware, HTTP server settings
+  internal/database/    connection and migrations (dbtest: integration test helper)
+  migrations/           SQL migrations, embedded in the binary
+  docs/                 generated Swagger files
+mobile/
+  src/api/              fetch client and task endpoints
+  src/hooks/            React Query hooks
+  src/components/       list, item, search, status filter, pagination, form modal
+  src/screens/          TasksScreen, which wires them together
+docker/mysql/init.sql   creates the test database
+```
 
 ## Design decisions
 
