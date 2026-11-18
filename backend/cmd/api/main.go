@@ -2,7 +2,6 @@ package main
 
 import (
 	"log/slog"
-	"net/http"
 	"os"
 	"time"
 
@@ -42,7 +41,7 @@ func main() {
 	router := server.New(handler, cfg.CORSOrigins)
 
 	slog.Info("api listening", "port", cfg.Port)
-	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
+	if err := server.HTTPServer(":"+cfg.Port, router).ListenAndServe(); err != nil {
 		fatal("serve", err)
 	}
 }

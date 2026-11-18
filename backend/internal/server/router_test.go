@@ -37,3 +37,11 @@ func TestSwaggerDoc_Served(t *testing.T) {
 		}
 	}
 }
+
+func TestHTTPServer_HasTimeouts(t *testing.T) {
+	s := server.HTTPServer(":0", http.NotFoundHandler())
+	if s.ReadHeaderTimeout <= 0 || s.ReadTimeout <= 0 || s.WriteTimeout <= 0 || s.IdleTimeout <= 0 {
+		t.Fatalf("timeouts not set: header=%v read=%v write=%v idle=%v",
+			s.ReadHeaderTimeout, s.ReadTimeout, s.WriteTimeout, s.IdleTimeout)
+	}
+}
