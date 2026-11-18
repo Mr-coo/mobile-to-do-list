@@ -35,7 +35,7 @@ export function TasksScreen() {
     }
   }, [page, totalPages]);
 
-  const handleSearch =useCallback((value: string) => {
+  const handleSearch = useCallback((value: string) => {
     setKeyword(value);
     setPage(1);
   }, []);
