@@ -100,3 +100,46 @@ func TestDelete_NotFound(t *testing.T) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestCreate_NormalisesAssignee(t *testing.T) {
+	svc := task.NewService(newFakeRepo(), nil)
+	ctx := context.Background()
+
+	trimmed, err := svc.Create(ctx, task.CreateInput{Title: "A", Assignee: ptr("  Ana ")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trimmed.Assignee == nil || *trimmed.Assignee != "Ana" {
+		t.Fatalf("assignee = %v, want Ana", trimmed.Assignee)
+	}
+
+	blank, err := svc.Create(ctx, task.CreateInput{Title: "B", Assignee: ptr("   ")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blank.Assignee != nil {
+		t.Fatalf("assignee = %q, want nil", *blank.Assignee)
+	}
+}
+
+func TestUpdate_NormalisesAssignee(t *testing.T) {
+	svc := task.NewService(newFakeRepo(), nil)
+	orig := seed(t, svc, "Old")
+	ctx := context.Background()
+
+	trimmed, err := svc.Update(ctx, orig.ID, task.UpdateInput{Title: "Old", Status: task.StatusTodo, Assignee: ptr(" Ana ")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trimmed.Assignee == nil || *trimmed.Assignee != "Ana" {
+		t.Fatalf("assignee = %v, want Ana", trimmed.Assignee)
+	}
+
+	blank, err := svc.Update(ctx, orig.ID, task.UpdateInput{Title: "Old", Status: task.StatusTodo, Assignee: ptr("  ")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blank.Assignee != nil {
+		t.Fatalf("assignee = %q, want nil", *blank.Assignee)
+	}
+}

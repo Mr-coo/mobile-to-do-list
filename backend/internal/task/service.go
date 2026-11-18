@@ -45,6 +45,19 @@ func (s *Service) invalidate(ctx context.Context) {
 	}
 }
 
+// normaliseAssignee trims spaces and maps blank to nil, because the list
+// filter trims too and the collation would not match " Ana " to "Ana".
+func normaliseAssignee(a *string) *string {
+	if a == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*a)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
 func (s *Service) Create(ctx context.Context, in CreateInput) (*Task, error) {
 	title := strings.TrimSpace(in.Title)
 	if title == "" {
@@ -54,7 +67,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*Task, error) {
 		Title:       title,
 		Description: in.Description,
 		Status:      in.Status,
-		Assignee:    in.Assignee,
+		Assignee:    normaliseAssignee(in.Assignee),
 	}
 	if t.Status == "" {
 		t.Status = StatusTodo
@@ -127,7 +140,7 @@ func (s *Service) Update(ctx context.Context, id uint64, in UpdateInput) (*Task,
 	t.Title = title
 	t.Description = in.Description
 	t.Status = in.Status
-	t.Assignee = in.Assignee
+	t.Assignee = normaliseAssignee(in.Assignee)
 	if err := s.repo.Update(ctx, t); err != nil {
 		return nil, err
 	}
