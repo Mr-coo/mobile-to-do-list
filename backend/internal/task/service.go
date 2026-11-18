@@ -34,11 +34,13 @@ func NewService(repo Repository, cache ListCache) *Service {
 
 // invalidate runs after a successful write. The write already succeeded, so a
 // cache failure is only logged; stale lists expire on their own after the TTL.
+// It ignores cancellation so a client that disconnects after the commit still
+// clears the cache.
 func (s *Service) invalidate(ctx context.Context) {
 	if s.cache == nil {
 		return
 	}
-	if err := s.cache.InvalidateLists(ctx); err != nil {
+	if err := s.cache.InvalidateLists(context.WithoutCancel(ctx)); err != nil {
 		slog.Warn("invalidate list cache", "error", err)
 	}
 }
