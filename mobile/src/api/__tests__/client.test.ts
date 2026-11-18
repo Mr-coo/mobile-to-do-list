@@ -9,7 +9,7 @@ function mockFetch(status: number, body?: unknown) {
 describe('request', () => {
   it('throws an ApiError with status, code, message and details for the standard error body', async () => {
     mockFetch(400, {
-      error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: { title: 'title is required' } },
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid request', details: { title: 'is required' } },
     });
 
     const error = await request('/tasks').catch((e: unknown) => e) as ApiError;
@@ -17,8 +17,8 @@ describe('request', () => {
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(400);
     expect(error.code).toBe('VALIDATION_ERROR');
-    expect(error.message).toBe('Invalid input');
-    expect(error.details).toEqual({ title: 'title is required' });
+    expect(error.message).toBe('Invalid request');
+    expect(error.details).toEqual({ title: 'is required' });
   });
 
   it('falls back to code UNKNOWN when the error is a plain string', async () => {
