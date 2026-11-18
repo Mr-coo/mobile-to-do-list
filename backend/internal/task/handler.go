@@ -1,13 +1,13 @@
 package task
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	"taskmanager/internal/apperr"
+	"taskmanager/internal/httpx"
 )
 
 type Handler struct {
@@ -27,25 +27,22 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 func (h *Handler) create(c *gin.Context) {
 	var in CreateInput
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if verr := apperr.FromBinding(err); verr != nil {
+			httpx.WriteError(c, verr)
+			return
+		}
+		httpx.WriteError(c, err)
 		return
 	}
 	if in.Status != "" && !in.Status.Valid() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status"})
+		httpx.WriteError(c, &apperr.ValidationError{Details: map[string]string{
+			"status": "must be one of todo, in_progress, done",
+		}})
 		return
 	}
 	t, err := h.svc.Create(c.Request.Context(), in)
-	var verr *apperr.ValidationError
-	if errors.As(err, &verr) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": verr.Error()})
-		return
-	}
-	if errors.Is(err, apperr.ErrDuplicateTitle) {
-		c.JSON(http.StatusConflict, gin.H{"error": "task title already exists"})
-		return
-	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.WriteError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"data": t})
@@ -54,26 +51,30 @@ func (h *Handler) create(c *gin.Context) {
 func (h *Handler) list(c *gin.Context) {
 	tasks, err := h.svc.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.WriteError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": tasks})
 }
 
 func (h *Handler) get(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, err := parseID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		httpx.WriteError(c, err)
 		return
 	}
 	t, err := h.svc.Get(c.Request.Context(), id)
-	if errors.Is(err, apperr.ErrNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
-		return
-	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.WriteError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": t})
+}
+
+func parseID(c *gin.Context) (uint64, error) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		return 0, &apperr.ValidationError{Details: map[string]string{"id": "must be a positive integer"}}
+	}
+	return id, nil
 }
