@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"taskmanager/internal/server"
@@ -43,5 +44,30 @@ func TestHTTPServer_HasTimeouts(t *testing.T) {
 	if s.ReadHeaderTimeout <= 0 || s.ReadTimeout <= 0 || s.WriteTimeout <= 0 || s.IdleTimeout <= 0 {
 		t.Fatalf("timeouts not set: header=%v read=%v write=%v idle=%v",
 			s.ReadHeaderTimeout, s.ReadTimeout, s.WriteTimeout, s.IdleTimeout)
+	}
+}
+
+func TestOversizedBody_Returns413(t *testing.T) {
+	r := server.New(task.NewHandler(nil), nil)
+	body := `{"title":"` + strings.Repeat("a", 1<<20) + `"}`
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413; body %s", w.Code, w.Body.String())
+	}
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Error.Code != "PAYLOAD_TOO_LARGE" {
+		t.Fatalf("code = %q, want PAYLOAD_TOO_LARGE", got.Error.Code)
 	}
 }

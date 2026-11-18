@@ -28,7 +28,10 @@ func Write(c *gin.Context, status int, code, message string, details map[string]
 // errors are logged and hidden behind a generic 500.
 func WriteError(c *gin.Context, err error) {
 	var verr *apperr.ValidationError
+	var tooLarge *http.MaxBytesError
 	switch {
+	case errors.As(err, &tooLarge):
+		Write(c, http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "Request body too large", nil)
 	case errors.As(err, &verr):
 		Write(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request", verr.Details)
 	case errors.Is(err, apperr.ErrNotFound):

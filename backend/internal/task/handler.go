@@ -45,6 +45,7 @@ type CreateTaskRequest struct {
 // @Success	201		{object}	TaskResponse
 // @Failure	400		{object}	httpx.ErrorBody
 // @Failure	409		{object}	httpx.ErrorBody
+// @Failure	413		{object}	httpx.ErrorBody
 // @Failure	500		{object}	httpx.ErrorBody
 // @Router		/tasks [post]
 func (h *Handler) create(c *gin.Context) {
@@ -133,6 +134,7 @@ type UpdateTaskRequest struct {
 // @Failure	400		{object}	httpx.ErrorBody
 // @Failure	404		{object}	httpx.ErrorBody
 // @Failure	409		{object}	httpx.ErrorBody
+// @Failure	413		{object}	httpx.ErrorBody
 // @Failure	500		{object}	httpx.ErrorBody
 // @Router		/tasks/{id} [put]
 func (h *Handler) update(c *gin.Context) {
