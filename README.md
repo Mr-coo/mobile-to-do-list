@@ -121,7 +121,7 @@ curl -s -X POST localhost:8080/api/tasks -H 'Content-Type: application/json' \
 # filtered list, with the cache header
 curl -si 'localhost:8080/api/tasks?status=todo&keyword=milk&sort=title&limit=5' | grep -i -e '^HTTP' -e '^X-Cache'
 
-# update (PUT; status is required)
+# update (PUT replaces the task: status is required, omitted description/assignee are cleared)
 curl -s -X PUT localhost:8080/api/tasks/1 -H 'Content-Type: application/json' \
   -d '{"title":"Buy oat milk","status":"done"}'
 
