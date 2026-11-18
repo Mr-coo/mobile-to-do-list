@@ -49,12 +49,7 @@ type CreateTaskRequest struct {
 // @Router		/tasks [post]
 func (h *Handler) create(c *gin.Context) {
 	var req CreateTaskRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if verr := apperr.FromBinding(err); verr != nil {
-			httpx.WriteError(c, verr)
-			return
-		}
-		httpx.WriteError(c, err)
+	if !bindJSON(c, &req) {
 		return
 	}
 	t, err := h.svc.Create(c.Request.Context(), CreateInput(req))
@@ -147,12 +142,7 @@ func (h *Handler) update(c *gin.Context) {
 		return
 	}
 	var req UpdateTaskRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if verr := apperr.FromBinding(err); verr != nil {
-			httpx.WriteError(c, verr)
-			return
-		}
-		httpx.WriteError(c, err)
+	if !bindJSON(c, &req) {
 		return
 	}
 	t, err := h.svc.Update(c.Request.Context(), id, UpdateInput(req))
@@ -190,4 +180,18 @@ func parseID(c *gin.Context) (uint64, error) {
 		return 0, &apperr.ValidationError{Details: map[string]string{"id": "must be a positive integer"}}
 	}
 	return id, nil
+}
+
+// bindJSON writes the error response and returns false when the body is invalid.
+func bindJSON(c *gin.Context, req any) bool {
+	err := c.ShouldBindJSON(req)
+	if err == nil {
+		return true
+	}
+	if verr := apperr.FromBinding(err); verr != nil {
+		httpx.WriteError(c, verr)
+	} else {
+		httpx.WriteError(c, err)
+	}
+	return false
 }
