@@ -11,7 +11,7 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, t *Task) error
-	List(ctx context.Context) ([]Task, error)
+	List(ctx context.Context, q ListQuery) ([]Task, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Task, error)
 }
 
@@ -31,10 +31,18 @@ func (r *GormRepository) Create(ctx context.Context, t *Task) error {
 	return err
 }
 
-func (r *GormRepository) List(ctx context.Context) ([]Task, error) {
+func (r *GormRepository) List(ctx context.Context, q ListQuery) ([]Task, int64, error) {
+	filtered := r.db.WithContext(ctx).Model(&Task{}).
+		Scopes(WithStatus(q.Status), WithAssignee(q.Assignee), WithKeyword(q.Keyword))
+
+	var total int64
+	if err := filtered.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	var tasks []Task
-	err := r.db.WithContext(ctx).Order("created_at DESC").Find(&tasks).Error
-	return tasks, err
+	err := filtered.Scopes(OrderBy(q.Sort), Paginate(q.Page, q.Limit)).Find(&tasks).Error
+	return tasks, total, err
 }
 
 func (r *GormRepository) GetByID(ctx context.Context, id uint64) (*Task, error) {

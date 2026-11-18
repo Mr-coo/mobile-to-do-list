@@ -49,12 +49,17 @@ func (h *Handler) create(c *gin.Context) {
 }
 
 func (h *Handler) list(c *gin.Context) {
-	tasks, err := h.svc.List(c.Request.Context())
+	q, err := ParseListQuery(c.Request.URL.Query())
 	if err != nil {
 		httpx.WriteError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": tasks})
+	result, err := h.svc.List(c.Request.Context(), q)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *Handler) get(c *gin.Context) {

@@ -33,16 +33,25 @@ func (f *fakeRepo) Create(ctx context.Context, t *task.Task) error {
 	return nil
 }
 
-func (f *fakeRepo) List(ctx context.Context) ([]task.Task, error) {
-	out := make([]task.Task, 0, len(f.tasks))
+// List filters by status and assignee only and sorts newest first; keyword
+// and field sorting are covered by the repository integration tests.
+func (f *fakeRepo) List(ctx context.Context, q task.ListQuery) ([]task.Task, int64, error) {
+	var out []task.Task
 	for _, t := range f.tasks {
-		if t.DeletedAt.Valid {
+		if t.DeletedAt.Valid || (q.Status != "" && t.Status != q.Status) {
+			continue
+		}
+		if q.Assignee != "" && (t.Assignee == nil || !strings.EqualFold(*t.Assignee, q.Assignee)) {
 			continue
 		}
 		out = append(out, t)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID > out[j].ID })
-	return out, nil
+
+	total := int64(len(out))
+	start := min((q.Page-1)*q.Limit, len(out))
+	end := min(start+q.Limit, len(out))
+	return out[start:end], total, nil
 }
 
 func (f *fakeRepo) GetByID(ctx context.Context, id uint64) (*task.Task, error) {

@@ -2,6 +2,7 @@ package task_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -195,5 +196,38 @@ func TestWrongMethod_Returns405JSON(t *testing.T) {
 	}
 	if e := errorOf(t, w); e.Code != "METHOD_NOT_ALLOWED" {
 		t.Fatalf("error = %+v", e)
+	}
+}
+
+func TestListTasks_InvalidStatus_Returns400(t *testing.T) {
+	w := do(newRouter(), http.MethodGet, "/api/tasks?status=bogus", "")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w.Code)
+	}
+	e := errorOf(t, w)
+	if e.Code != "VALIDATION_ERROR" || e.Details["status"] == "" {
+		t.Fatalf("error = %+v", e)
+	}
+}
+
+func TestListTasks_Meta(t *testing.T) {
+	r := newRouter()
+	for i := 0; i < 25; i++ {
+		do(r, http.MethodPost, "/api/tasks", fmt.Sprintf(`{"title":"Task %d"}`, i))
+	}
+
+	w := do(r, http.MethodGet, "/api/tasks?limit=10&page=3", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+	var resp task.ListResult
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Data) != 5 || resp.Meta.TotalPages != 3 || resp.Meta.Total != 25 || resp.Meta.Page != 3 || resp.Meta.Limit != 10 {
+		t.Fatalf("data = %d, meta = %+v", len(resp.Data), resp.Meta)
+	}
+	if !strings.Contains(w.Body.String(), `"total_pages":3`) {
+		t.Fatalf("body = %s", w.Body)
 	}
 }
