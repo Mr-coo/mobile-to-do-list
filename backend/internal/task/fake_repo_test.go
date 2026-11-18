@@ -54,6 +54,17 @@ func (f *fakeRepo) List(ctx context.Context, q task.ListQuery) ([]task.Task, int
 	return out[start:end], total, nil
 }
 
+func (f *fakeRepo) Update(ctx context.Context, t *task.Task) error {
+	for id, existing := range f.tasks {
+		if id != t.ID && !existing.DeletedAt.Valid && strings.EqualFold(existing.Title, t.Title) {
+			return apperr.ErrDuplicateTitle
+		}
+	}
+	t.UpdatedAt = time.Now()
+	f.tasks[t.ID] = *t
+	return nil
+}
+
 func (f *fakeRepo) GetByID(ctx context.Context, id uint64) (*task.Task, error) {
 	t, ok := f.tasks[id]
 	if !ok || t.DeletedAt.Valid {

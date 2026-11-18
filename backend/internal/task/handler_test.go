@@ -231,3 +231,67 @@ func TestListTasks_Meta(t *testing.T) {
 		t.Fatalf("body = %s", w.Body)
 	}
 }
+
+func createTask(t *testing.T, r *gin.Engine, title string) uint64 {
+	t.Helper()
+	w := do(r, http.MethodPost, "/api/tasks", fmt.Sprintf(`{"title":%q}`, title))
+	var resp struct {
+		Data task.Task `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	return resp.Data.ID
+}
+
+func TestUpdateTask_Returns200(t *testing.T) {
+	r := newRouter()
+	id := createTask(t, r, "Old")
+
+	w := do(r, http.MethodPut, fmt.Sprintf("/api/tasks/%d", id),
+		`{"title":"New","status":"done","assignee":"bob","description":"d"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+	var resp struct {
+		Data task.Task `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Data.ID != id || resp.Data.Title != "New" || resp.Data.Status != task.StatusDone {
+		t.Fatalf("unexpected task: %+v", resp.Data)
+	}
+}
+
+func TestUpdateTask_MissingStatus_Returns400(t *testing.T) {
+	r := newRouter()
+	id := createTask(t, r, "Old")
+
+	w := do(r, http.MethodPut, fmt.Sprintf("/api/tasks/%d", id), `{"title":"New"}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+	e := errorOf(t, w)
+	if e.Code != "VALIDATION_ERROR" || e.Details["status"] == "" {
+		t.Fatalf("unexpected error: %+v", e)
+	}
+}
+
+func TestUpdateTask_NotFound_Returns404(t *testing.T) {
+	w := do(newRouter(), http.MethodPut, "/api/tasks/99", `{"title":"New","status":"todo"}`)
+	if w.Code != http.StatusNotFound || errorOf(t, w).Code != "NOT_FOUND" {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+}
+
+func TestUpdateTask_DuplicateTitle_Returns409(t *testing.T) {
+	r := newRouter()
+	createTask(t, r, "One")
+	id := createTask(t, r, "Two")
+
+	w := do(r, http.MethodPut, fmt.Sprintf("/api/tasks/%d", id), `{"title":"one","status":"todo"}`)
+	if w.Code != http.StatusConflict || errorOf(t, w).Code != "DUPLICATE_TITLE" {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+}

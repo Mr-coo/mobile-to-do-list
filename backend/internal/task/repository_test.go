@@ -157,3 +157,26 @@ func TestList_Search(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdate_ClearsAssignee(t *testing.T) {
+	repo := task.NewGormRepository(dbtest.New(t))
+	ctx := context.Background()
+
+	who := "bob"
+	tk := &task.Task{Title: "Assigned", Status: task.StatusTodo, Assignee: &who}
+	if err := repo.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+	tk.Assignee = nil
+	if err := repo.Update(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := repo.GetByID(ctx, tk.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Assignee != nil {
+		t.Fatalf("assignee = %q, want NULL", *got.Assignee)
+	}
+}

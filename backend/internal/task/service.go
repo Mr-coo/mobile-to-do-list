@@ -14,6 +14,13 @@ type CreateInput struct {
 	Assignee    *string `json:"assignee"`
 }
 
+type UpdateInput struct {
+	Title       string
+	Description *string
+	Status      Status
+	Assignee    *string
+}
+
 type Service struct {
 	repo Repository
 }
@@ -60,4 +67,23 @@ func (s *Service) List(ctx context.Context, q ListQuery) (ListResult, error) {
 
 func (s *Service) Get(ctx context.Context, id uint64) (*Task, error) {
 	return s.repo.GetByID(ctx, id)
+}
+
+func (s *Service) Update(ctx context.Context, id uint64, in UpdateInput) (*Task, error) {
+	title := strings.TrimSpace(in.Title)
+	if title == "" {
+		return nil, &apperr.ValidationError{Details: map[string]string{"title": "is required"}}
+	}
+	t, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	t.Title = title
+	t.Description = in.Description
+	t.Status = in.Status
+	t.Assignee = in.Assignee
+	if err := s.repo.Update(ctx, t); err != nil {
+		return nil, err
+	}
+	return t, nil
 }

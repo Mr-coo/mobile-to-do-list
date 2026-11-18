@@ -22,6 +22,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.POST("/tasks", h.create)
 	rg.GET("/tasks", h.list)
 	rg.GET("/tasks/:id", h.get)
+	rg.PUT("/tasks/:id", h.update)
 }
 
 func (h *Handler) create(c *gin.Context) {
@@ -69,6 +70,36 @@ func (h *Handler) get(c *gin.Context) {
 		return
 	}
 	t, err := h.svc.Get(c.Request.Context(), id)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": t})
+}
+
+type updateTaskRequest struct {
+	Title       string  `json:"title" binding:"required,max=255"`
+	Description *string `json:"description"`
+	Status      Status  `json:"status" binding:"required,oneof=todo in_progress done"`
+	Assignee    *string `json:"assignee" binding:"omitempty,max=100"`
+}
+
+func (h *Handler) update(c *gin.Context) {
+	id, err := parseID(c)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	var req updateTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if verr := apperr.FromBinding(err); verr != nil {
+			httpx.WriteError(c, verr)
+			return
+		}
+		httpx.WriteError(c, err)
+		return
+	}
+	t, err := h.svc.Update(c.Request.Context(), id, UpdateInput(req))
 	if err != nil {
 		httpx.WriteError(c, err)
 		return

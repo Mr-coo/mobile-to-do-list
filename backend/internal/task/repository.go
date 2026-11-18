@@ -13,6 +13,7 @@ type Repository interface {
 	Create(ctx context.Context, t *Task) error
 	List(ctx context.Context, q ListQuery) ([]Task, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Task, error)
+	Update(ctx context.Context, t *Task) error
 }
 
 type GormRepository struct {
@@ -55,4 +56,14 @@ func (r *GormRepository) GetByID(ctx context.Context, id uint64) (*Task, error) 
 		return nil, err
 	}
 	return &t, nil
+}
+
+// Select lists the columns explicitly so nil/empty values are written too.
+func (r *GormRepository) Update(ctx context.Context, t *Task) error {
+	err := r.db.WithContext(ctx).Model(t).
+		Select("title", "description", "status", "assignee").Updates(t).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return apperr.ErrDuplicateTitle
+	}
+	return err
 }
