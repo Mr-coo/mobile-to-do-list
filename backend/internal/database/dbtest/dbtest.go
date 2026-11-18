@@ -21,6 +21,11 @@ func New(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("get sql db: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
 	if err := database.Migrate(db); err != nil {
 		t.Fatalf("migrate test db: %v", err)
 	}
