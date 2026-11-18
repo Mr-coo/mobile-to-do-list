@@ -295,3 +295,51 @@ func TestUpdateTask_DuplicateTitle_Returns409(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
 	}
 }
+
+func TestDeleteTask_Returns204(t *testing.T) {
+	r := newRouter()
+	id := createTask(t, r, "Write docs")
+	w := do(r, http.MethodDelete, fmt.Sprintf("/api/tasks/%d", id), "")
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body)
+	}
+	if w.Body.Len() != 0 {
+		t.Fatalf("body = %q, want empty", w.Body)
+	}
+}
+
+func TestDeleteTask_NotFound_Returns404(t *testing.T) {
+	w := do(newRouter(), http.MethodDelete, "/api/tasks/999", "")
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if e := errorOf(t, w); e.Code != "NOT_FOUND" {
+		t.Fatalf("code = %s", e.Code)
+	}
+}
+
+func TestDeleteTask_NonNumericID_Returns400(t *testing.T) {
+	w := do(newRouter(), http.MethodDelete, "/api/tasks/abc", "")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if e := errorOf(t, w); e.Code != "VALIDATION_ERROR" {
+		t.Fatalf("code = %s", e.Code)
+	}
+}
+
+func TestDeleteTask_ThenGet_Returns404(t *testing.T) {
+	r := newRouter()
+	id := createTask(t, r, "Write docs")
+	path := fmt.Sprintf("/api/tasks/%d", id)
+	if w := do(r, http.MethodDelete, path, ""); w.Code != http.StatusNoContent {
+		t.Fatalf("delete status = %d", w.Code)
+	}
+	w := do(r, http.MethodGet, path, "")
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("get status = %d", w.Code)
+	}
+	if e := errorOf(t, w); e.Code != "NOT_FOUND" {
+		t.Fatalf("code = %s", e.Code)
+	}
+}

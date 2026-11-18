@@ -87,3 +87,7 @@ func (s *Service) Update(ctx context.Context, id uint64, in UpdateInput) (*Task,
 	}
 	return t, nil
 }
+
+func (s *Service) Delete(ctx context.Context, id uint64) error {
+	return s.repo.Delete(ctx, id)
+}

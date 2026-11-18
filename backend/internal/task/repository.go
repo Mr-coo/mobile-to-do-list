@@ -14,6 +14,7 @@ type Repository interface {
 	List(ctx context.Context, q ListQuery) ([]Task, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Task, error)
 	Update(ctx context.Context, t *Task) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type GormRepository struct {
@@ -66,4 +67,16 @@ func (r *GormRepository) Update(ctx context.Context, t *Task) error {
 		return apperr.ErrDuplicateTitle
 	}
 	return err
+}
+
+// Task has a gorm.DeletedAt field, so this is an UPDATE of deleted_at, not a DELETE.
+func (r *GormRepository) Delete(ctx context.Context, id uint64) error {
+	res := r.db.WithContext(ctx).Delete(&Task{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return apperr.ErrNotFound
+	}
+	return nil
 }

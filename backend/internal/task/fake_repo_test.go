@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/gorm"
+
 	"taskmanager/internal/apperr"
 	"taskmanager/internal/task"
 )
@@ -71,4 +73,14 @@ func (f *fakeRepo) GetByID(ctx context.Context, id uint64) (*task.Task, error) {
 		return nil, apperr.ErrNotFound
 	}
 	return &t, nil
+}
+
+func (f *fakeRepo) Delete(ctx context.Context, id uint64) error {
+	t, ok := f.tasks[id]
+	if !ok || t.DeletedAt.Valid {
+		return apperr.ErrNotFound
+	}
+	t.DeletedAt = gorm.DeletedAt{Time: time.Now(), Valid: true}
+	f.tasks[id] = t
+	return nil
 }

@@ -23,6 +23,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.GET("/tasks", h.list)
 	rg.GET("/tasks/:id", h.get)
 	rg.PUT("/tasks/:id", h.update)
+	rg.DELETE("/tasks/:id", h.delete)
 }
 
 func (h *Handler) create(c *gin.Context) {
@@ -105,6 +106,19 @@ func (h *Handler) update(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": t})
+}
+
+func (h *Handler) delete(c *gin.Context) {
+	id, err := parseID(c)
+	if err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
+		httpx.WriteError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func parseID(c *gin.Context) (uint64, error) {

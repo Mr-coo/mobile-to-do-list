@@ -82,3 +82,21 @@ func TestUpdate_WhitespaceTitle(t *testing.T) {
 		t.Fatalf("err = %v, want ValidationError", err)
 	}
 }
+
+func TestDelete_Success(t *testing.T) {
+	svc := task.NewService(newFakeRepo())
+	tk := seed(t, svc, "Buy milk")
+	if err := svc.Delete(context.Background(), tk.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Get(context.Background(), tk.ID); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("Get err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDelete_NotFound(t *testing.T) {
+	svc := task.NewService(newFakeRepo())
+	if err := svc.Delete(context.Background(), 999); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}

@@ -180,3 +180,77 @@ func TestUpdate_ClearsAssignee(t *testing.T) {
 		t.Fatalf("assignee = %q, want NULL", *got.Assignee)
 	}
 }
+
+func TestDelete_SetsDeletedAt(t *testing.T) {
+	db := dbtest.New(t)
+	repo := task.NewGormRepository(db)
+	ctx := context.Background()
+
+	tk := &task.Task{Title: "Buy milk", Status: task.StatusTodo}
+	if err := repo.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Delete(ctx, tk.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	var count int64
+	if err := db.Raw("SELECT COUNT(*) FROM tasks WHERE id = ? AND deleted_at IS NOT NULL", tk.ID).Scan(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("soft-deleted rows = %d, want 1", count)
+	}
+	if _, err := repo.GetByID(ctx, tk.ID); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("GetByID err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDelete_Twice_ReturnsNotFound(t *testing.T) {
+	repo := task.NewGormRepository(dbtest.New(t))
+	ctx := context.Background()
+
+	tk := &task.Task{Title: "Buy milk", Status: task.StatusTodo}
+	if err := repo.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Delete(ctx, tk.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Delete(ctx, tk.ID); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("second delete err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDelete_FreesTitle(t *testing.T) {
+	repo := task.NewGormRepository(dbtest.New(t))
+	ctx := context.Background()
+
+	tk := &task.Task{Title: "Buy milk", Status: task.StatusTodo}
+	if err := repo.Create(ctx, tk); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Delete(ctx, tk.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Create(ctx, &task.Task{Title: "Buy milk", Status: task.StatusTodo}); err != nil {
+		t.Fatalf("reusing deleted title: %v", err)
+	}
+}
+
+func TestUpdate_DuplicateTitle_Repository(t *testing.T) {
+	repo := task.NewGormRepository(dbtest.New(t))
+	ctx := context.Background()
+
+	if err := repo.Create(ctx, &task.Task{Title: "Buy milk", Status: task.StatusTodo}); err != nil {
+		t.Fatal(err)
+	}
+	second := &task.Task{Title: "Buy bread", Status: task.StatusTodo}
+	if err := repo.Create(ctx, second); err != nil {
+		t.Fatal(err)
+	}
+	second.Title = "buy milk"
+	if err := repo.Update(ctx, second); !errors.Is(err, apperr.ErrDuplicateTitle) {
+		t.Fatalf("err = %v, want ErrDuplicateTitle", err)
+	}
+}
