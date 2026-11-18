@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Pagination } from '../components/Pagination';
@@ -27,7 +27,15 @@ export function TasksScreen() {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
-  const handleSearch = useCallback((value: string) => {
+  const totalPages = data?.meta.total_pages;
+  useEffect(() => {
+    // After a delete or edit the current page may no longer exist
+    if (totalPages !== undefined && page > Math.max(1, totalPages)) {
+      setPage(Math.max(1, totalPages));
+    }
+  }, [page, totalPages]);
+
+  const handleSearch =useCallback((value: string) => {
     setKeyword(value);
     setPage(1);
   }, []);
@@ -39,10 +47,14 @@ export function TasksScreen() {
 
   const closeForm = () => {
     setFormVisible(false);
-    setEditing(undefined);
     createTask.reset();
     updateTask.reset();
     deleteTask.reset();
+  };
+
+  const openNew = () => {
+    setEditing(undefined);
+    setFormVisible(true);
   };
 
   const openEdit = (task: Task) => {
@@ -51,6 +63,7 @@ export function TasksScreen() {
   };
 
   const handleSubmit = (input: TaskInput) => {
+    deleteTask.reset();
     if (editing) {
       updateTask.mutate({ id: editing.id, input }, { onSuccess: closeForm });
     } else {
@@ -59,7 +72,9 @@ export function TasksScreen() {
   };
 
   const handleDelete = () => {
-    if (editing) deleteTask.mutate(editing.id, { onSuccess: closeForm });
+    if (!editing) return;
+    saveMutation.reset();
+    deleteTask.mutate(editing.id, { onSuccess: closeForm });
   };
 
   const saveMutation = editing ? updateTask : createTask;
@@ -71,7 +86,7 @@ export function TasksScreen() {
           <Text style={styles.title}>Tasks</Text>
           {isFetching && !isLoading ? <ActivityIndicator testID="refetching" size="small" /> : null}
         </View>
-        <Pressable style={styles.addButton} onPress={() => setFormVisible(true)}>
+        <Pressable style={styles.addButton} onPress={openNew}>
           <Text style={styles.addText}>+ New task</Text>
         </Pressable>
       </View>
