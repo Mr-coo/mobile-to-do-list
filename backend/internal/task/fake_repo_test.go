@@ -36,6 +36,9 @@ func (f *fakeRepo) Create(ctx context.Context, t *task.Task) error {
 func (f *fakeRepo) List(ctx context.Context) ([]task.Task, error) {
 	out := make([]task.Task, 0, len(f.tasks))
 	for _, t := range f.tasks {
+		if t.DeletedAt.Valid {
+			continue
+		}
 		out = append(out, t)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID > out[j].ID })
@@ -44,7 +47,7 @@ func (f *fakeRepo) List(ctx context.Context) ([]task.Task, error) {
 
 func (f *fakeRepo) GetByID(ctx context.Context, id uint64) (*task.Task, error) {
 	t, ok := f.tasks[id]
-	if !ok {
+	if !ok || t.DeletedAt.Valid {
 		return nil, apperr.ErrNotFound
 	}
 	return &t, nil
