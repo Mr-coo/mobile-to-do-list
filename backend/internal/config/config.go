@@ -17,7 +17,7 @@ func Load() Config {
 		Port:        getEnv("PORT", "8080"),
 		MySQLDSN:    os.Getenv("MYSQL_DSN"),
 		RedisAddr:   getEnv("REDIS_ADDR", "localhost:6379"),
-		CORSOrigins: strings.Split(getEnv("CORS_ORIGINS", "http://localhost:8081"), ","),
+		CORSOrigins: splitList(getEnv("CORS_ORIGINS", "http://localhost:8081")),
 	}
 }
 
@@ -26,4 +26,14 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func splitList(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
