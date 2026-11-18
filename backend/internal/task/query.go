@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"taskmanager/internal/apperr"
 )
@@ -12,6 +13,7 @@ const (
 	defaultPage  = 1
 	defaultLimit = 10
 	maxLimit     = 100
+	maxFilterLen = 100 // also bounds the cache key length
 	defaultSort  = "-created_at"
 )
 
@@ -57,6 +59,12 @@ func ParseListQuery(v url.Values) (ListQuery, error) {
 
 	if q.Status != "" && !q.Status.Valid() {
 		details["status"] = "must be one of todo, in_progress, done"
+	}
+	if utf8.RuneCountInString(q.Keyword) > maxFilterLen {
+		details["keyword"] = "must be at most 100 characters"
+	}
+	if utf8.RuneCountInString(q.Assignee) > maxFilterLen {
+		details["assignee"] = "must be at most 100 characters"
 	}
 	if s := strings.TrimSpace(v.Get("page")); s != "" {
 		n, err := strconv.Atoi(s)

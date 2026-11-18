@@ -65,8 +65,8 @@ func (h *Handler) create(c *gin.Context) {
 // @Tags		tasks
 // @Produce	json
 // @Param		status		query		string	false	"Filter by status"	Enums(todo, in_progress, done)
-// @Param		keyword		query		string	false	"Search in title and description"
-// @Param		assignee	query		string	false	"Filter by assignee"
+// @Param		keyword		query		string	false	"Search in title and description"	maxlength(100)
+// @Param		assignee	query		string	false	"Filter by assignee"	maxlength(100)
 // @Param		page		query		int		false	"Page number"							default(1)																				minimum(1)
 // @Param		limit		query		int		false	"Items per page"						default(10)																				minimum(1)	maximum(100)
 // @Param		sort		query		string	false	"Sort field, prefix - for descending"	Enums(created_at, -created_at, updated_at, -updated_at, title, -title, status, -status)	default(-created_at)

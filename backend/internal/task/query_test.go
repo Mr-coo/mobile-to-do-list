@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 
 	"taskmanager/internal/apperr"
@@ -26,6 +27,9 @@ func TestParseListQuery(t *testing.T) {
 		{name: "sort not whitelisted", query: "sort=password", wantInvalid: "sort"},
 		{name: "sort title", query: "sort=title", want: task.ListQuery{Page: 1, Limit: 10, Sort: "title"}},
 		{name: "sort descending", query: "sort=-updated_at", want: task.ListQuery{Page: 1, Limit: 10, Sort: "-updated_at"}},
+		{name: "keyword too long", query: "keyword=" + strings.Repeat("a", 101), wantInvalid: "keyword"},
+		{name: "keyword at limit", query: "keyword=" + strings.Repeat("é", 100), want: task.ListQuery{Keyword: strings.Repeat("é", 100), Page: 1, Limit: 10, Sort: "-created_at"}},
+		{name: "assignee too long", query: "assignee=" + strings.Repeat("a", 101), wantInvalid: "assignee"},
 		{name: "keyword trimmed", query: "keyword=%20%20milk%20", want: task.ListQuery{Keyword: "milk", Page: 1, Limit: 10, Sort: "-created_at"}},
 		{name: "all params", query: "status=done&assignee=%20Ana&page=2&limit=5", want: task.ListQuery{Status: task.StatusDone, Assignee: "Ana", Page: 2, Limit: 5, Sort: "-created_at"}},
 	}
@@ -57,17 +61,19 @@ func TestParseListQuery(t *testing.T) {
 }
 
 func TestParseListQuery_Messages(t *testing.T) {
-	v, _ := url.ParseQuery("status=x&page=x&limit=x&sort=x")
+	v, _ := url.ParseQuery("status=x&page=x&limit=x&sort=x&keyword=" + strings.Repeat("a", 101) + "&assignee=" + strings.Repeat("a", 101))
 	_, err := task.ParseListQuery(v)
 	var verr *apperr.ValidationError
 	if !errors.As(err, &verr) {
 		t.Fatalf("err = %v", err)
 	}
 	want := map[string]string{
-		"status": "must be one of todo, in_progress, done",
-		"page":   "must be a positive integer",
-		"limit":  "must be between 1 and 100",
-		"sort":   "must be one of created_at, updated_at, title, status (prefix - for descending)",
+		"status":   "must be one of todo, in_progress, done",
+		"page":     "must be a positive integer",
+		"limit":    "must be between 1 and 100",
+		"sort":     "must be one of created_at, updated_at, title, status (prefix - for descending)",
+		"keyword":  "must be at most 100 characters",
+		"assignee": "must be at most 100 characters",
 	}
 	if !reflect.DeepEqual(verr.Details, want) {
 		t.Fatalf("details = %v", verr.Details)

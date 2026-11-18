@@ -37,12 +37,14 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "maxLength": 100,
                         "type": "string",
                         "description": "Search in title and description",
                         "name": "keyword",
                         "in": "query"
                     },
                     {
+                        "maxLength": 100,
                         "type": "string",
                         "description": "Filter by assignee",
                         "name": "assignee",
