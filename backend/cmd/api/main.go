@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 
@@ -25,7 +26,15 @@ func main() {
 	}
 
 	repo := task.NewGormRepository(db)
-	rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	// The cache is optional: when Redis is down, fail fast and fall back to MySQL.
+	rdb := redis.NewClient(&redis.Options{
+		Addr:          cfg.RedisAddr,
+		DialTimeout:   200 * time.Millisecond,
+		ReadTimeout:   200 * time.Millisecond,
+		WriteTimeout:  200 * time.Millisecond,
+		MaxRetries:    -1,
+		DialerRetries: 1, // default is 5 attempts per dial
+	})
 	handler := task.NewHandler(task.NewService(repo, task.NewRedisListCache(rdb)))
 	router := server.New(handler, cfg.CORSOrigins)
 
