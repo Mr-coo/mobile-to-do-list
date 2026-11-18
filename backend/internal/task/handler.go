@@ -10,6 +10,10 @@ import (
 	"taskmanager/internal/httpx"
 )
 
+type TaskResponse struct {
+	Data Task `json:"data"`
+}
+
 type Handler struct {
 	svc *Service
 }
@@ -26,6 +30,16 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.DELETE("/tasks/:id", h.delete)
 }
 
+// @Summary	Create a task
+// @Tags		tasks
+// @Accept		json
+// @Produce	json
+// @Param		body	body		CreateInput	true	"Task to create"
+// @Success	201		{object}	TaskResponse
+// @Failure	400		{object}	httpx.ErrorBody
+// @Failure	409		{object}	httpx.ErrorBody
+// @Failure	500		{object}	httpx.ErrorBody
+// @Router		/tasks [post]
 func (h *Handler) create(c *gin.Context) {
 	var in CreateInput
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -47,9 +61,23 @@ func (h *Handler) create(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": t})
+	c.JSON(http.StatusCreated, TaskResponse{Data: *t})
 }
 
+// @Summary	List tasks
+// @Tags		tasks
+// @Produce	json
+// @Param		status		query		string	false	"Filter by status"	Enums(todo, in_progress, done)
+// @Param		keyword		query		string	false	"Search in title and description"
+// @Param		assignee	query		string	false	"Filter by assignee"
+// @Param		page		query		int		false	"Page number"							default(1)																				minimum(1)
+// @Param		limit		query		int		false	"Items per page"						default(10)																				minimum(1)	maximum(100)
+// @Param		sort		query		string	false	"Sort field, prefix - for descending"	Enums(created_at, -created_at, updated_at, -updated_at, title, -title, status, -status)	default(-created_at)
+// @Success	200			{object}	ListResult
+// @Header		200			{string}	X-Cache	"HIT or MISS"
+// @Failure	400			{object}	httpx.ErrorBody
+// @Failure	500			{object}	httpx.ErrorBody
+// @Router		/tasks [get]
 func (h *Handler) list(c *gin.Context) {
 	q, err := ParseListQuery(c.Request.URL.Query())
 	if err != nil {
@@ -69,6 +97,15 @@ func (h *Handler) list(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// @Summary	Get a task
+// @Tags		tasks
+// @Produce	json
+// @Param		id	path		int	true	"Task ID"
+// @Success	200	{object}	TaskResponse
+// @Failure	400	{object}	httpx.ErrorBody
+// @Failure	404	{object}	httpx.ErrorBody
+// @Failure	500	{object}	httpx.ErrorBody
+// @Router		/tasks/{id} [get]
 func (h *Handler) get(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -80,7 +117,7 @@ func (h *Handler) get(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": t})
+	c.JSON(http.StatusOK, TaskResponse{Data: *t})
 }
 
 type updateTaskRequest struct {
@@ -90,6 +127,18 @@ type updateTaskRequest struct {
 	Assignee    *string `json:"assignee" binding:"omitempty,max=100"`
 }
 
+// @Summary	Update a task
+// @Tags		tasks
+// @Accept		json
+// @Produce	json
+// @Param		id		path		int					true	"Task ID"
+// @Param		body	body		updateTaskRequest	true	"New task values"
+// @Success	200		{object}	TaskResponse
+// @Failure	400		{object}	httpx.ErrorBody
+// @Failure	404		{object}	httpx.ErrorBody
+// @Failure	409		{object}	httpx.ErrorBody
+// @Failure	500		{object}	httpx.ErrorBody
+// @Router		/tasks/{id} [put]
 func (h *Handler) update(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {
@@ -110,9 +159,17 @@ func (h *Handler) update(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": t})
+	c.JSON(http.StatusOK, TaskResponse{Data: *t})
 }
 
+// @Summary	Delete a task
+// @Tags		tasks
+// @Param		id	path	int	true	"Task ID"
+// @Success	204
+// @Failure	400	{object}	httpx.ErrorBody
+// @Failure	404	{object}	httpx.ErrorBody
+// @Failure	500	{object}	httpx.ErrorBody
+// @Router		/tasks/{id} [delete]
 func (h *Handler) delete(c *gin.Context) {
 	id, err := parseID(c)
 	if err != nil {

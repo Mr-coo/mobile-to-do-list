@@ -6,7 +6,10 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
+	_ "taskmanager/docs"
 	"taskmanager/internal/httpx"
 	"taskmanager/internal/task"
 )
@@ -34,6 +37,7 @@ func New(h *task.Handler, corsOrigins []string) *gin.Engine {
 		}))
 	}
 
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	h.Register(r.Group("/api"))
 	return r
 }

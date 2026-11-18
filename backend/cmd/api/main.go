@@ -14,6 +14,9 @@ import (
 	"taskmanager/internal/task"
 )
 
+// @title		Task Management API
+// @version	1.0
+// @BasePath	/api
 func main() {
 	cfg := config.Load()
 

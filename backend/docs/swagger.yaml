@@ -1,0 +1,306 @@
+basePath: /api
+definitions:
+  httpx.ErrorBody:
+    properties:
+      error:
+        $ref: '#/definitions/httpx.ErrorDetail'
+    type: object
+  httpx.ErrorDetail:
+    properties:
+      code:
+        type: string
+      details:
+        additionalProperties:
+          type: string
+        type: object
+      message:
+        type: string
+    type: object
+  task.CreateInput:
+    properties:
+      assignee:
+        type: string
+      description:
+        type: string
+      status:
+        $ref: '#/definitions/task.Status'
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  task.ListResult:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/task.Task'
+        type: array
+      meta:
+        $ref: '#/definitions/task.Meta'
+    type: object
+  task.Meta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  task.Status:
+    enum:
+    - todo
+    - in_progress
+    - done
+    type: string
+    x-enum-varnames:
+    - StatusTodo
+    - StatusInProgress
+    - StatusDone
+  task.Task:
+    properties:
+      assignee:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      status:
+        $ref: '#/definitions/task.Status'
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  task.TaskResponse:
+    properties:
+      data:
+        $ref: '#/definitions/task.Task'
+    type: object
+  task.updateTaskRequest:
+    properties:
+      assignee:
+        maxLength: 100
+        type: string
+      description:
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/task.Status'
+        enum:
+        - todo
+        - in_progress
+        - done
+      title:
+        maxLength: 255
+        type: string
+    required:
+    - status
+    - title
+    type: object
+info:
+  contact: {}
+  title: Task Management API
+  version: "1.0"
+paths:
+  /tasks:
+    get:
+      parameters:
+      - description: Filter by status
+        enum:
+        - todo
+        - in_progress
+        - done
+        in: query
+        name: status
+        type: string
+      - description: Search in title and description
+        in: query
+        name: keyword
+        type: string
+      - description: Filter by assignee
+        in: query
+        name: assignee
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: -created_at
+        description: Sort field, prefix - for descending
+        enum:
+        - created_at
+        - -created_at
+        - updated_at
+        - -updated_at
+        - title
+        - -title
+        - status
+        - -status
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Cache:
+              description: HIT or MISS
+              type: string
+          schema:
+            $ref: '#/definitions/task.ListResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+      summary: List tasks
+      tags:
+      - tasks
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Task to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/task.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/task.TaskResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+      summary: Create a task
+      tags:
+      - tasks
+  /tasks/{id}:
+    delete:
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+      summary: Delete a task
+      tags:
+      - tasks
+    get:
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/task.TaskResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+      summary: Get a task
+      tags:
+      - tasks
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New task values
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/task.updateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/task.TaskResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+      summary: Update a task
+      tags:
+      - tasks
+swagger: "2.0"
