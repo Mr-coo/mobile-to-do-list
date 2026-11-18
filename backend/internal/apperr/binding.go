@@ -4,11 +4,26 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"reflect"
 	"strings"
-	"unicode"
 
+	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
+
+// Registered here, where binding errors are translated, so FieldError.Field()
+// is the JSON name in every importer (server and tests alike).
+func init() {
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterTagNameFunc(func(f reflect.StructField) string {
+			name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+			if name == "-" {
+				return ""
+			}
+			return name
+		})
+	}
+}
 
 // FromBinding turns a gin binding error into a ValidationError. Unknown
 // error kinds are returned as nil so callers can treat them as internal.
@@ -17,7 +32,7 @@ func FromBinding(err error) *ValidationError {
 	if errors.As(err, &verrs) {
 		details := make(map[string]string, len(verrs))
 		for _, fe := range verrs {
-			details[snakeCase(fe.Field())] = ruleMessage(fe)
+			details[fe.Field()] = ruleMessage(fe)
 		}
 		return &ValidationError{Details: details}
 	}
@@ -42,20 +57,4 @@ func ruleMessage(fe validator.FieldError) string {
 	default:
 		return "is invalid"
 	}
-}
-
-// snakeCase maps a Go field name (CreatedAt) to its JSON name (created_at).
-// Every request struct field uses the snake_case of its Go name as json tag.
-func snakeCase(s string) string {
-	var b strings.Builder
-	for i, r := range s {
-		if unicode.IsUpper(r) {
-			if i > 0 {
-				b.WriteByte('_')
-			}
-			r = unicode.ToLower(r)
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
 }
