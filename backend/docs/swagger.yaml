@@ -16,15 +16,22 @@ definitions:
       message:
         type: string
     type: object
-  task.CreateInput:
+  task.CreateTaskRequest:
     properties:
       assignee:
+        maxLength: 100
         type: string
       description:
         type: string
       status:
-        $ref: '#/definitions/task.Status'
+        allOf:
+        - $ref: '#/definitions/task.Status'
+        enum:
+        - todo
+        - in_progress
+        - done
       title:
+        maxLength: 255
         type: string
     required:
     - title
@@ -81,7 +88,7 @@ definitions:
       data:
         $ref: '#/definitions/task.Task'
     type: object
-  task.updateTaskRequest:
+  task.UpdateTaskRequest:
     properties:
       assignee:
         maxLength: 100
@@ -184,7 +191,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/task.CreateInput'
+          $ref: '#/definitions/task.CreateTaskRequest'
       produces:
       - application/json
       responses:
@@ -276,7 +283,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/task.updateTaskRequest'
+          $ref: '#/definitions/task.UpdateTaskRequest'
       produces:
       - application/json
       responses:

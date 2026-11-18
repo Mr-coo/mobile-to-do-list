@@ -30,19 +30,26 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	rg.DELETE("/tasks/:id", h.delete)
 }
 
+type CreateTaskRequest struct {
+	Title       string  `json:"title" binding:"required,max=255"`
+	Description *string `json:"description"`
+	Status      Status  `json:"status" binding:"omitempty,oneof=todo in_progress done"`
+	Assignee    *string `json:"assignee" binding:"omitempty,max=100"`
+}
+
 // @Summary	Create a task
 // @Tags		tasks
 // @Accept		json
 // @Produce	json
-// @Param		body	body		CreateInput	true	"Task to create"
+// @Param		body	body		CreateTaskRequest	true	"Task to create"
 // @Success	201		{object}	TaskResponse
 // @Failure	400		{object}	httpx.ErrorBody
 // @Failure	409		{object}	httpx.ErrorBody
 // @Failure	500		{object}	httpx.ErrorBody
 // @Router		/tasks [post]
 func (h *Handler) create(c *gin.Context) {
-	var in CreateInput
-	if err := c.ShouldBindJSON(&in); err != nil {
+	var req CreateTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		if verr := apperr.FromBinding(err); verr != nil {
 			httpx.WriteError(c, verr)
 			return
@@ -50,13 +57,7 @@ func (h *Handler) create(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	if in.Status != "" && !in.Status.Valid() {
-		httpx.WriteError(c, &apperr.ValidationError{Details: map[string]string{
-			"status": "must be one of todo, in_progress, done",
-		}})
-		return
-	}
-	t, err := h.svc.Create(c.Request.Context(), in)
+	t, err := h.svc.Create(c.Request.Context(), CreateInput(req))
 	if err != nil {
 		httpx.WriteError(c, err)
 		return
@@ -120,7 +121,7 @@ func (h *Handler) get(c *gin.Context) {
 	c.JSON(http.StatusOK, TaskResponse{Data: *t})
 }
 
-type updateTaskRequest struct {
+type UpdateTaskRequest struct {
 	Title       string  `json:"title" binding:"required,max=255"`
 	Description *string `json:"description"`
 	Status      Status  `json:"status" binding:"required,oneof=todo in_progress done"`
@@ -132,7 +133,7 @@ type updateTaskRequest struct {
 // @Accept		json
 // @Produce	json
 // @Param		id		path		int					true	"Task ID"
-// @Param		body	body		updateTaskRequest	true	"New task values"
+// @Param		body	body		UpdateTaskRequest	true	"New task values"
 // @Success	200		{object}	TaskResponse
 // @Failure	400		{object}	httpx.ErrorBody
 // @Failure	404		{object}	httpx.ErrorBody
@@ -145,7 +146,7 @@ func (h *Handler) update(c *gin.Context) {
 		httpx.WriteError(c, err)
 		return
 	}
-	var req updateTaskRequest
+	var req UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if verr := apperr.FromBinding(err); verr != nil {
 			httpx.WriteError(c, verr)

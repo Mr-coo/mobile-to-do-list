@@ -128,7 +128,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/task.CreateInput"
+                            "$ref": "#/definitions/task.CreateTaskRequest"
                         }
                     }
                 ],
@@ -230,7 +230,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/task.updateTaskRequest"
+                            "$ref": "#/definitions/task.UpdateTaskRequest"
                         }
                     }
                 ],
@@ -333,23 +333,34 @@ const docTemplate = `{
                 }
             }
         },
-        "task.CreateInput": {
+        "task.CreateTaskRequest": {
             "type": "object",
             "required": [
                 "title"
             ],
             "properties": {
                 "assignee": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "description": {
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/task.Status"
+                    "enum": [
+                        "todo",
+                        "in_progress",
+                        "done"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/task.Status"
+                        }
+                    ]
                 },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 255
                 }
             }
         },
@@ -431,7 +442,7 @@ const docTemplate = `{
                 }
             }
         },
-        "task.updateTaskRequest": {
+        "task.UpdateTaskRequest": {
             "type": "object",
             "required": [
                 "status",

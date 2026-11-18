@@ -10,10 +10,10 @@ import (
 )
 
 type CreateInput struct {
-	Title       string  `json:"title" binding:"required"`
-	Description *string `json:"description"`
-	Status      Status  `json:"status"`
-	Assignee    *string `json:"assignee"`
+	Title       string
+	Description *string
+	Status      Status
+	Assignee    *string
 }
 
 type UpdateInput struct {
