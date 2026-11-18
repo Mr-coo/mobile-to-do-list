@@ -1,6 +1,10 @@
 package task
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Status string
 
@@ -15,12 +19,12 @@ func (s Status) Valid() bool {
 }
 
 type Task struct {
-	ID          uint64     `json:"id" gorm:"primaryKey"`
-	Title       string     `json:"title"`
-	Description *string    `json:"description"`
-	Status      Status     `json:"status"`
-	Assignee    *string    `json:"assignee"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	DeletedAt   *time.Time `json:"-"`
+	ID          uint64         `json:"id" gorm:"primaryKey"`
+	Title       string         `json:"title"`
+	Description *string        `json:"description"`
+	Status      Status         `json:"status"`
+	Assignee    *string        `json:"assignee"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 }

@@ -21,7 +21,7 @@ func newFakeRepo() *fakeRepo {
 
 func (f *fakeRepo) Create(ctx context.Context, t *task.Task) error {
 	for _, existing := range f.tasks {
-		if existing.DeletedAt == nil && strings.EqualFold(existing.Title, t.Title) {
+		if !existing.DeletedAt.Valid && strings.EqualFold(existing.Title, t.Title) {
 			return apperr.ErrDuplicateTitle
 		}
 	}
